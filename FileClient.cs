@@ -24,32 +24,31 @@ namespace pr_2_cl
 
             using (TcpClient client = new TcpClient())
             {
-                // Подключаемся асинхронно
                 await client.ConnectAsync(serverIp, port);
                 using (NetworkStream stream = client.GetStream())
-                using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true })
-                using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                using (BinaryWriter writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+                using (BinaryReader reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true))
                 {
                     string fileName = Path.GetFileName(filePath);
-                    await writer.WriteLineAsync(fileName); // Отправляем имя файла
+                    byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
+                    byte[] fileContent = File.ReadAllBytes(filePath);
 
-                    foreach (string fline in File.ReadLines(filePath, Encoding.UTF8))
-                        await writer.WriteLineAsync(fline); // Отправляем строки файла
+                    // Сначала отправляем длину имени файла, потом само имя
+                    writer.Write(fileNameBytes.Length);
+                    writer.Write(fileNameBytes);
 
-                    await writer.WriteLineAsync("EOF"); // Отправляем маркер конца
+                    // Затем отправляем длину содержимого и содержимое файла
+                    writer.Write(fileContent.Length);
+                    writer.Write(fileContent);
 
-                    // Получаем ответ от сервера
-                    var response = new StringBuilder();
-                    string line;
-                    while ((line = await reader.ReadLineAsync()) != null)
-                    {
-                        response.AppendLine(line);
-                    }
-                    return response.ToString();
+                    // Читаем ответ от сервера
+                    int responseLength = reader.ReadInt32(); // читаем длину сообщения
+                    byte[] responseBuffer = reader.ReadBytes(responseLength); // читаем сам ответ
+
+                    string response = Encoding.UTF8.GetString(responseBuffer);
+                    return response.Replace("\n", Environment.NewLine); 
                 }
             }
         }
-
     }
-
 }
