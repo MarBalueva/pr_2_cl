@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace pr_2_cl
 {
+
     public class FileClient
     {
         private readonly string serverIp;
